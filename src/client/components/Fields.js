@@ -11,6 +11,7 @@ import { Portal } from './Portal'
 import { CurvePane } from './CurvePane'
 import { isArray } from 'lodash-es'
 import { downloadFile } from '../../core/extras/downloadFile'
+import { Web3AuthModal } from './Web3AuthModal'
 
 export function FieldText({ label, hint, placeholder, value, onChange }) {
   const { setHint } = useContext(HintContext)
@@ -1037,7 +1038,7 @@ export function FieldBtn({ label, note, hint, nav, onClick }) {
   )
 }
 
-export function FieldButon({ label, note, hint, nav, onClick }) {
+export function FieldButton({ label, note, hint, nav, onClick }) {
   const { setHint } = useContext(HintContext)
   return (
     <div
@@ -1082,5 +1083,38 @@ export function FieldButon({ label, note, hint, nav, onClick }) {
       {/* {note && <div className='fieldbtn-note'>{note}</div>} */}
       {/* {nav && <ChevronRightIcon size='1.5rem' />} */}
     </div>
+  )
+}
+
+export function FieldWeb3Auth({ world }) {
+  const player = world.entities.player
+  const isAdmin = player.data.isWeb3Admin
+
+  return (
+    <button
+      onClick={() => world.evmModal.show()}
+      css={css`
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 2.5rem;
+        padding: 0 1rem;
+        margin: 1rem auto;
+        max-width: 80%;
+        border-radius: 6px;
+        background: rgba(255, 77, 77, 0.9);
+        transition: all 0.2s ease;
+        color: rgba(255, 255, 255, 0.95);
+        font-size: 0.9375rem;
+        
+        &:hover {
+          cursor: pointer;
+          background: rgba(255, 77, 77, 1);
+          transform: translateY(-1px);
+        }
+      `}
+    >
+      {isAdmin ? 'Verified Admin ✓' : 'Connect Wallet for Admin'}
+    </button>
   )
 }
