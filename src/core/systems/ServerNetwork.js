@@ -335,28 +335,31 @@ export class ServerNetwork extends System {
     const playerId = player.data.id
     const [cmd, arg1, arg2] = args
 
-    // Web3 admin verification
-    if (cmd === 'verify') {
-      const isAdmin = await verifyWeb3Admin(player);
-      if (isAdmin) {
-        player.data.isWeb3Admin = true;
+    if (cmd === 'admin') {
+      const code = arg1
+      if (process.env.ADMIN_CODE && process.env.ADMIN_CODE === code) {
+        const id = player.data.id
+        const userId = player.data.userId
+        const roles = player.data.roles
+        const granting = !hasRole(roles, 'admin')
+        if (granting) {
+          addRole(roles, 'admin')
+        } else {
+          removeRole(roles, 'admin')
+        }
+        player.modify({ roles })
+        this.send('entityModified', { id, roles })
         socket.send('chatAdded', {
           id: uuid(),
           from: null,
           fromId: null,
-          body: 'NFT verification successful! Admin rights granted.',
+          body: granting ? 'Admin granted!' : 'Admin revoked!',
           createdAt: moment().toISOString(),
-        });
-      } else {
-        socket.send('chatAdded', {
-          id: uuid(),
-          from: null,
-          fromId: null,
-          body: 'NFT verification failed. Required NFTs not found.',
-          createdAt: moment().toISOString(),
-        });
+        })
+        await this.db('users')
+          .where('id', userId)
+          .update({ roles: serializeRoles(roles) })
       }
-      return;
     }
 
     // Handle other existing commands
@@ -564,12 +567,12 @@ export class ServerNetwork extends System {
         throw new Error('Invalid signature')
       }
 
-
-      player.modify({ address:recoveredAddress.toLowerCase() })
-        this.world.network.send('entityModified', {
-          id: player.data.id,
-          address: recoveredAddress.toLowerCase(),
-        })
+      // Store the verified address
+      player.modify({ address: recoveredAddress.toLowerCase() })
+      this.world.network.send('entityModified', {
+        id: player.data.id,
+        address: recoveredAddress.toLowerCase(),
+      })
 
       // Verify NFT ownership
       console.log('Verifying NFT ownership...')
@@ -581,17 +584,52 @@ export class ServerNetwork extends System {
       console.log('NFT verification result:', isAdmin)
 
       if (isAdmin) {
-        player.modify({ isWeb3Admin: true })
-        this.world.network.send('entityModified', {
-          id: player.data.id,
-          isWeb3Admin: true,
+        // Update roles
+        const roles = player.data.roles
+        if (!hasRole(roles, 'admin')) {
+          addRole(roles, 'admin')
+          player.modify({ roles })
+          this.send('entityModified', { 
+            id: player.data.id, 
+            roles 
+          })
+        }
+
+        socket.send('chatAdded', {
+          id: uuid(),
+          from: null,
+          fromId: null,
+          body: 'Admin granted!',
+          createdAt: moment().toISOString(),
         })
         
         // Send success response
         socket.send('web3Auth', { success: true })
       } else {
+        // Remove admin role if they don't have the NFT
+        const roles = player.data.roles
+        if (hasRole(roles, 'admin')) {
+          removeRole(roles, 'admin')
+          player.modify({ roles })
+          this.send('entityModified', { 
+            id: player.data.id, 
+            roles 
+          })
+        }
+
+        socket.send('chatAdded', {
+          id: uuid(),
+          from: null,
+          fromId: null,
+          body: 'Admin revoked!',
+          createdAt: moment().toISOString(),
+        })
+        
         // Send failure response
-        socket.send('web3Auth', { success: false, error: 'NFT verification failed. Required NFTs not found.' })
+        socket.send('web3Auth', { 
+          success: false, 
+          error: 'NFT verification failed. Required NFTs not found.' 
+        })
       }
     } catch (err) {
       console.error('Web3 auth error:', err)

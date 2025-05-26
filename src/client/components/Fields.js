@@ -1114,7 +1114,7 @@ export function FieldWeb3Auth({ world }) {
         }
       `}
     >
-      {isAdmin ? 'Verified Admin ✓' : 'Connect Wallet for Admin'}
+      {isAdmin ? 'Logout ✓' : 'Login'}
     </button>
   )
 }
