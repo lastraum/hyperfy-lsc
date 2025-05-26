@@ -14,6 +14,7 @@ export class ClientUI extends System {
       app: null,
       pane: null,
       reticleSuppressors: 0,
+      web3Modal: false,
     }
     this.lastAppPane = 'app'
     this.control = null
@@ -90,6 +91,13 @@ export class ClientUI extends System {
       this.broadcast()
       released = true
     }
+  }
+
+  toggleWeb3Modal(value) {
+    value = isBoolean(value) ? value : !this.state.web3Modal
+    if (this.state.web3Modal === value) return
+    this.state.web3Modal = value
+    this.broadcast()
   }
 
   broadcast() {

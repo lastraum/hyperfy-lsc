@@ -1036,6 +1036,14 @@ export class PlayerLocal extends Entity {
       this.data.roles = data.roles
       changed = true
     }
+    if (data.hasOwnProperty('address')) {
+      this.data.address = data.address
+      changed = true
+    }
+    if (data.hasOwnProperty('isWeb3Admin')) {
+      this.data.isWeb3Admin = data.isWeb3Admin
+      changed = true
+    }
     if (avatarChanged) {
       this.applyAvatar()
     }

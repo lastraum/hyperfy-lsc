@@ -15,6 +15,7 @@ import { ClientBuilder } from './systems/ClientBuilder'
 import { ClientActions } from './systems/ClientActions'
 import { ClientTarget } from './systems/ClientTarget'
 import { ClientUI } from './systems/ClientUI'
+import { ClientEVMModal } from './systems/ClientEVMModal'
 import { LODs } from './systems/LODs'
 import { Nametags } from './systems/Nametags'
 import { Particles } from './systems/Particles'
@@ -39,6 +40,7 @@ export function createClientWorld() {
   world.register('actions', ClientActions)
   world.register('target', ClientTarget)
   world.register('ui', ClientUI)
+  world.register('evmModal', ClientEVMModal)
   world.register('lods', LODs)
   world.register('nametags', Nametags)
   world.register('particles', Particles)

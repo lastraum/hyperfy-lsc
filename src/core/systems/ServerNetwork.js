@@ -6,6 +6,9 @@ import { System } from './System'
 import { createJWT, readJWT } from '../utils-server'
 import { cloneDeep, isNumber } from 'lodash-es'
 import * as THREE from '../extras/three'
+import { verifyWeb3Admin } from '../utils'
+import { verifyMessage } from 'ethers/lib/utils.js'
+import { verifyNFTOwnership } from '../utils'
 
 const SAVE_INTERVAL = parseInt(process.env.SAVE_INTERVAL || '60') // seconds
 const PING_RATE = 1 // seconds
@@ -207,7 +210,11 @@ export class ServerNetwork extends System {
   }
 
   isAdmin(player) {
-    return hasRole(player.data.roles, 'admin')
+    // Check for existing admin role (backwards compatibility)
+    if (player.data.roles?.includes('admin')) return true
+    
+    // Check Web3 admin status if wallet is connected
+    return player.data.isWeb3Admin === true
   }
 
   isBuilder(player) {
@@ -280,13 +287,14 @@ export class ServerNetwork extends System {
           type: 'player',
           position: this.spawn.position.slice(),
           quaternion: this.spawn.quaternion.slice(),
-          owner: socket.id, // deprecated, same as userId
-          userId: user.id, // deprecated, same as userId
+          owner: socket.id,
+          userId: user.id,
           name: name || user.name,
           health: HEALTH_MAX,
           avatar: user.avatar || this.world.settings.avatar?.url || 'asset://avatar.vrm',
           sessionAvatar: avatar || null,
           roles: user.roles,
+          isWeb3Admin: false, // Only used for session-based Web3 auth
         },
         true
       )
@@ -323,38 +331,35 @@ export class ServerNetwork extends System {
   }
 
   onCommand = async (socket, args) => {
-    // TODO: check for spoofed messages, permissions/roles etc
-    // handle slash commands
     const player = socket.player
     const playerId = player.data.id
     const [cmd, arg1, arg2] = args
-    // become admin command
-    if (cmd === 'admin') {
-      const code = arg1
-      if (process.env.ADMIN_CODE && process.env.ADMIN_CODE === code) {
-        const id = player.data.id
-        const userId = player.data.userId
-        const roles = player.data.roles
-        const granting = !hasRole(roles, 'admin')
-        if (granting) {
-          addRole(roles, 'admin')
-        } else {
-          removeRole(roles, 'admin')
-        }
-        player.modify({ roles })
-        this.send('entityModified', { id, roles })
+
+    // Web3 admin verification
+    if (cmd === 'verify') {
+      const isAdmin = await verifyWeb3Admin(player);
+      if (isAdmin) {
+        player.data.isWeb3Admin = true;
         socket.send('chatAdded', {
           id: uuid(),
           from: null,
           fromId: null,
-          body: granting ? 'Admin granted!' : 'Admin revoked!',
+          body: 'NFT verification successful! Admin rights granted.',
           createdAt: moment().toISOString(),
-        })
-        await this.db('users')
-          .where('id', userId)
-          .update({ roles: serializeRoles(roles) })
+        });
+      } else {
+        socket.send('chatAdded', {
+          id: uuid(),
+          from: null,
+          fromId: null,
+          body: 'NFT verification failed. Required NFTs not found.',
+          createdAt: moment().toISOString(),
+        });
       }
+      return;
     }
+
+    // Handle other existing commands
     if (cmd === 'name') {
       const name = arg1
       if (name) {
@@ -402,10 +407,9 @@ export class ServerNetwork extends System {
         )
       }
     }
-    // emit event for all except admin
-    if (cmd !== 'admin') {
-      this.world.events.emit('command', { playerId, args })
-    }
+
+    // emit event for all commands
+    this.world.events.emit('command', { playerId, args })
   }
 
   onBlueprintAdded = (socket, blueprint) => {
@@ -542,5 +546,56 @@ export class ServerNetwork extends System {
   onDisconnect = (socket, code) => {
     socket.player.destroy(true)
     this.sockets.delete(socket.id)
+  }
+
+  // Add new handler for Web3 authentication
+  onWeb3Auth = async (socket, data) => {
+    console.log('Server received Web3 auth request:', { address: data.address, message: data.message })
+    const { address, message, signature } = data
+    const player = socket.player
+
+    try {
+      // Verify signature
+      console.log('Verifying signature...')
+      const recoveredAddress = verifyMessage(message, signature)
+      console.log('Recovered address:', recoveredAddress)
+      
+      if (recoveredAddress.toLowerCase() !== address.toLowerCase()) {
+        throw new Error('Invalid signature')
+      }
+
+
+      player.modify({ address:recoveredAddress.toLowerCase() })
+        this.world.network.send('entityModified', {
+          id: player.data.id,
+          address: recoveredAddress.toLowerCase(),
+        })
+
+      // Verify NFT ownership
+      console.log('Verifying NFT ownership...')
+      const isAdmin = await verifyNFTOwnership(
+        address,
+        process.env.ADMIN_NFT_CONTRACT,
+        Number(process.env.ADMIN_NFT_MIN_BALANCE || 1)
+      )
+      console.log('NFT verification result:', isAdmin)
+
+      if (isAdmin) {
+        player.modify({ isWeb3Admin: true })
+        this.world.network.send('entityModified', {
+          id: player.data.id,
+          isWeb3Admin: true,
+        })
+        
+        // Send success response
+        socket.send('web3Auth', { success: true })
+      } else {
+        // Send failure response
+        socket.send('web3Auth', { success: false, error: 'NFT verification failed. Required NFTs not found.' })
+      }
+    } catch (err) {
+      console.error('Web3 auth error:', err)
+      socket.send('web3Auth', { success: false, error: err.message })
+    }
   }
 }

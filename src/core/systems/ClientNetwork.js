@@ -29,10 +29,17 @@ export class ClientNetwork extends System {
     let url = `${wsUrl}?authToken=${authToken}`
     if (name) url += `&name=${encodeURIComponent(name)}`
     if (avatar) url += `&avatar=${encodeURIComponent(avatar)}`
+    console.log('Connecting to WebSocket:', url)
     this.ws = new WebSocket(url)
     this.ws.binaryType = 'arraybuffer'
     this.ws.addEventListener('message', this.onPacket)
     this.ws.addEventListener('close', this.onClose)
+    this.ws.addEventListener('open', () => {
+      console.log('WebSocket connection established')
+    })
+    this.ws.addEventListener('error', (error) => {
+      console.error('WebSocket error:', error)
+    })
   }
 
   preFixedUpdate() {
@@ -150,6 +157,7 @@ export class ClientNetwork extends System {
   }
 
   onChatAdded = msg => {
+    console.log('Client received chat message:', msg)
     this.world.chat.add(msg, false)
   }
 
@@ -215,6 +223,11 @@ export class ClientNetwork extends System {
     })
     this.world.emit('disconnect', code || true)
     console.log('disconnect', code)
+  }
+
+  onWeb3Auth = (data) => {
+    console.log('Client received Web3Auth response:', data)
+    this.world.emit('web3Auth', data)
   }
 
   destroy() {

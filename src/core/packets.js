@@ -22,6 +22,7 @@ const names = [
   'kick',
   'ping',
   'pong',
+  'web3Auth'
 ]
 
 const byName = {}

@@ -1,5 +1,6 @@
 import { some } from 'lodash-es'
 import { customAlphabet } from 'nanoid'
+import { ethers } from 'ethers'
 
 const ALPHABET = '1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
@@ -50,3 +51,36 @@ export function num(min, max, dp = 0) {
   const value = Math.random() * (max - min) + min
   return parseFloat(value.toFixed(dp))
 }
+
+// Web3 Authentication
+export async function verifyNFTOwnership(address, contractAddress, minBalance = 1) {
+  try {
+    const provider = new ethers.providers.JsonRpcProvider(process.env.RPC_URL)
+    const contract = new ethers.Contract(
+      contractAddress,
+      ['function balanceOf(address owner) view returns (uint256)'],
+      provider
+    )
+    
+    const balance = await contract.balanceOf(address)
+    return Number(balance) >= minBalance
+  } catch (err) {
+    console.error('NFT verification failed:', err)
+    return false
+  }
+}
+
+async function verifyWeb3Admin(player) {
+  if (!player?.data?.walletAddress) return false;
+  
+  // Check if wallet holds required NFTs
+  const hasNFTs = await verifyNFTOwnership(
+    player.data.walletAddress,
+    process.env.ADMIN_NFT_CONTRACT,
+    Number(process.env.ADMIN_NFT_MIN_BALANCE || 1)
+  );
+  
+  return hasNFTs;
+}
+
+export { verifyWeb3Admin };

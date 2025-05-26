@@ -18,6 +18,7 @@ import { ControlPriorities } from '../../core/extras/ControlPriorities'
 // import { MenuApp } from './MenuApp'
 import { ChevronDoubleUpIcon, HandIcon } from './Icons'
 import { Sidebar } from './Sidebar'
+import { Web3AuthModal } from './Web3AuthModal'
 
 export function CoreUI({ world }) {
   const ref = useRef()
@@ -30,6 +31,8 @@ export function CoreUI({ world }) {
   const [disconnected, setDisconnected] = useState(false)
   const [apps, setApps] = useState(false)
   const [kicked, setKicked] = useState(null)
+  const [showEVMModal, setShowEVMModal] = useState(false)
+
   useEffect(() => {
     world.on('ready', setReady)
     world.on('player', setPlayer)
@@ -40,6 +43,11 @@ export function CoreUI({ world }) {
     world.on('avatar', setAvatar)
     world.on('kick', setKicked)
     world.on('disconnect', setDisconnected)
+    
+    // Add EVM modal listener
+    const onEVMModalChange = (visible) => setShowEVMModal(visible)
+    world.evmModal.events.on('change', onEVMModalChange)
+
     return () => {
       world.off('ready', setReady)
       world.off('player', setPlayer)
@@ -50,6 +58,7 @@ export function CoreUI({ world }) {
       world.off('avatar', setAvatar)
       world.off('kick', setKicked)
       world.off('disconnect', setDisconnected)
+      world.evmModal.events.off('change', onEVMModalChange)
     }
   }, [])
 
@@ -105,6 +114,19 @@ export function CoreUI({ world }) {
       {kicked && <KickedOverlay code={kicked} />}
       {ready && isTouch && <TouchBtns world={world} />}
       {ready && <PlayerPosition world={world} player={player} />}
+      {showEVMModal && (
+        <div css={css`
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+        `}>
+          <Web3AuthModal world={world} onClose={() => world.evmModal.hide()} />
+        </div>
+      )}
       <div id='core-ui-portal' />
     </div>
   )
