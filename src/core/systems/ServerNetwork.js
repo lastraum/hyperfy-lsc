@@ -567,11 +567,12 @@ export class ServerNetwork extends System {
         throw new Error('Invalid signature')
       }
 
-      // Store the verified address
-      player.modify({ address: recoveredAddress.toLowerCase() })
+      // Store the verified address - always do this regardless of NFT ownership
+      const verifiedAddress = recoveredAddress.toLowerCase()
+      player.modify({ address: verifiedAddress })
       this.world.network.send('entityModified', {
         id: player.data.id,
-        address: recoveredAddress.toLowerCase(),
+        address: verifiedAddress,
       })
 
       // Verify NFT ownership
@@ -583,18 +584,15 @@ export class ServerNetwork extends System {
       )
       console.log('NFT verification result:', isAdmin)
 
-      if (isAdmin) {
-        // Update roles
-        const roles = player.data.roles
-        if (!hasRole(roles, 'admin')) {
-          addRole(roles, 'admin')
-          player.modify({ roles })
-          this.send('entityModified', { 
-            id: player.data.id, 
-            roles 
-          })
-        }
-
+      // Update admin role based on NFT ownership
+      const roles = player.data.roles
+      if (isAdmin && !hasRole(roles, 'admin')) {
+        addRole(roles, 'admin')
+        player.modify({ roles })
+        this.send('entityModified', { 
+          id: player.data.id, 
+          roles 
+        })
         socket.send('chatAdded', {
           id: uuid(),
           from: null,
@@ -602,35 +600,28 @@ export class ServerNetwork extends System {
           body: 'Admin granted!',
           createdAt: moment().toISOString(),
         })
-        
-        // Send success response
-        socket.send('web3Auth', { success: true })
-      } else {
-        // Remove admin role if they don't have the NFT
-        const roles = player.data.roles
-        if (hasRole(roles, 'admin')) {
-          removeRole(roles, 'admin')
-          player.modify({ roles })
-          this.send('entityModified', { 
-            id: player.data.id, 
-            roles 
-          })
-        }
-
+      } else if (!isAdmin && hasRole(roles, 'admin')) {
+        removeRole(roles, 'admin')
+        player.modify({ roles })
+        this.send('entityModified', { 
+          id: player.data.id, 
+          roles 
+        })
         socket.send('chatAdded', {
           id: uuid(),
           from: null,
           fromId: null,
-          body: 'Admin revoked!',
+          body: 'Admin revoked - Required NFTs not found.',
           createdAt: moment().toISOString(),
         })
-        
-        // Send failure response
-        socket.send('web3Auth', { 
-          success: false, 
-          error: 'NFT verification failed. Required NFTs not found.' 
-        })
       }
+      
+      // Always send success response since the address was verified and stored
+      socket.send('web3Auth', { 
+        success: true,
+        isAdmin // Include admin status in response
+      })
+
     } catch (err) {
       console.error('Web3 auth error:', err)
       socket.send('web3Auth', { success: false, error: err.message })

@@ -33,6 +33,124 @@ export function CoreUI({ world }) {
   const [kicked, setKicked] = useState(null)
   const [showEVMModal, setShowEVMModal] = useState(false)
 
+  // Setup ethereum event listeners
+  useEffect(() => {
+    console.log('Setting up ethereum event listeners in CoreUI...')
+    if (!window.ethereum) {
+      console.log('No ethereum provider found')
+      return
+    }
+    console.log('Ethereum provider found:', window.ethereum)
+
+    const handleChainChanged = () => {
+      console.log('Chain changed event fired')
+      // Remove admin role on network change
+      const player = world.entities.player
+      if (player.data.roles?.includes('admin')) {
+        const roles = [...player.data.roles]
+        const adminIndex = roles.indexOf('admin')
+        if (adminIndex > -1) {
+          roles.splice(adminIndex, 1)
+          player.modify({ roles })
+          world.network.send('entityModified', { 
+            id: player.data.id, 
+            roles 
+          })
+        }
+      }
+      
+      // Clear stored address
+      player.modify({ address: null })
+      world.network.send('entityModified', {
+        id: player.data.id,
+        address: null
+      })
+
+      // Show modal for re-authentication
+      world.evmModal.show()
+    }
+
+    const handleAccountsChanged = async (accounts) => {
+      console.log('Accounts changed event fired:', accounts)
+      const player = world.entities.player
+      
+      // If disconnected (accounts.length === 0)
+      if (accounts.length === 0) {
+        console.log('Wallet disconnected')
+        if (player.data.roles?.includes('admin')) {
+          const roles = [...player.data.roles]
+          const adminIndex = roles.indexOf('admin')
+          if (adminIndex > -1) {
+            roles.splice(adminIndex, 1)
+            player.modify({ roles })
+            world.network.send('entityModified', { 
+              id: player.data.id, 
+              roles 
+            })
+          }
+        }
+        // Clear stored address
+        player.modify({ address: null })
+        world.network.send('entityModified', {
+          id: player.data.id,
+          address: null
+        })
+        return
+      }
+
+      // If account changed
+      const newAddress = accounts[0]
+      console.log('Current stored address:', player.data.address)
+      console.log('New address:', newAddress)
+      
+      if (!player.data.address || newAddress.toLowerCase() !== player.data.address.toLowerCase()) {
+        console.log('Address changed, removing admin rights first')
+        
+        // Remove admin role immediately
+        if (player.data.roles?.includes('admin')) {
+          const roles = [...player.data.roles]
+          const adminIndex = roles.indexOf('admin')
+          if (adminIndex > -1) {
+            roles.splice(adminIndex, 1)
+            player.modify({ roles })
+            world.network.send('entityModified', { 
+              id: player.data.id, 
+              roles 
+            })
+          }
+        }
+        
+        // Clear stored address
+        player.modify({ address: null })
+        world.network.send('entityModified', {
+          id: player.data.id,
+          address: null
+        })
+
+        // Show modal for re-authentication
+        world.evmModal.show()
+      } else {
+        console.log('Address unchanged')
+      }
+    }
+
+    // Add listeners
+    window.ethereum.on('chainChanged', handleChainChanged)
+    window.ethereum.on('accountsChanged', handleAccountsChanged)
+    console.log('Event listeners attached')
+
+    // Test if we can get current accounts
+    window.ethereum.request({ method: 'eth_accounts' })
+      .then(accounts => console.log('Current accounts:', accounts))
+      .catch(err => console.error('Error getting accounts:', err))
+
+    return () => {
+      console.log('Cleaning up ethereum event listeners')
+      window.ethereum.removeListener('chainChanged', handleChainChanged)
+      window.ethereum.removeListener('accountsChanged', handleAccountsChanged)
+    }
+  }, [world])
+
   useEffect(() => {
     world.on('ready', setReady)
     world.on('player', setPlayer)
@@ -114,7 +232,7 @@ export function CoreUI({ world }) {
       {kicked && <KickedOverlay code={kicked} />}
       {ready && isTouch && <TouchBtns world={world} />}
       {ready && <PlayerPosition world={world} player={player} />}
-      {showEVMModal && (
+      {ready && showEVMModal && (
         <div css={css`
           position: fixed;
           inset: 0;

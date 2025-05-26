@@ -227,7 +227,9 @@ export class ClientNetwork extends System {
 
   onWeb3Auth = (data) => {
     console.log('Client received Web3Auth response:', data)
-    this.world.emit('web3Auth', data)
+    // Emit to both world and world.events
+    this.world.emit('web3Auth', data)  // For UI components like Web3AuthModal
+    this.world.events.emit('web3Auth', data)  // For app scripts
   }
 
   destroy() {
