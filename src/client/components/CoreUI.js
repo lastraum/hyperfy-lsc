@@ -104,6 +104,7 @@ export function CoreUI({ world }) {
       {!ready && <LoadingOverlay world={world} />}
       {kicked && <KickedOverlay code={kicked} />}
       {ready && isTouch && <TouchBtns world={world} />}
+      {ready && <PlayerPosition world={world} player={player} />}
       <div id='core-ui-portal' />
     </div>
   )
@@ -976,6 +977,77 @@ function Reticle({ world }) {
       `}
     >
       <div className='reticle-item' />
+    </div>
+  )
+}
+
+function PlayerPosition({ world, player }) {
+  const [visible, setVisible] = useState(world.controls.pointer.locked)
+  const [buildMode, setBuildMode] = useState(world.builder.enabled)
+  const [position, setPosition] = useState([0, 0, 0])
+  const [cameraRotation, setCameraRotation] = useState({ x: 0, y: 0, z: 0 })
+
+  useEffect(() => {
+    world.on('pointer-lock', setVisible)
+    world.on('build-mode', setBuildMode)
+
+    // Set up an animation frame loop to update position
+    let frameId
+    function updatePosition() {
+      // Only update position if build mode is enabled
+      if (buildMode) {
+        const player = world.entities.player
+        if (player && player.base) {
+          setPosition(player.base.position.toArray())
+          
+          // Get camera rotation in degrees from player.cam
+          const xDegrees = THREE.MathUtils.radToDeg(player.cam.rotation.x)
+          const yDegrees = THREE.MathUtils.radToDeg(player.cam.rotation.y)
+          const zDegrees = THREE.MathUtils.radToDeg(player.cam.rotation.z)
+          setCameraRotation({ x: xDegrees, y: yDegrees, z: zDegrees })
+        }
+        frameId = requestAnimationFrame(updatePosition)
+      }
+    }
+
+    // Start the update loop when build mode is enabled
+    if (buildMode) {
+      updatePosition()
+    }
+
+    return () => {
+      world.off('pointer-lock', setVisible)
+      world.off('build-mode', setBuildMode)
+      if (frameId) {
+        cancelAnimationFrame(frameId)
+      }
+    }
+  }, [buildMode])
+
+  // Only show when build mode is enabled
+  if (!buildMode) return null
+
+  return (
+    <div
+      className='playerposition'
+      css={css`
+        position: absolute;
+        top: 20px;
+        left: 80px;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 10px;
+        border-radius: 8px;
+        color: white;
+        font-family: monospace;
+        font-size: 14px;
+        border: 1px solid #4444ff;
+        white-space: nowrap;
+      `}
+    >
+      <div>
+        Pos: [{position[0].toFixed(2)}, {position[1].toFixed(2)}, {position[2].toFixed(2)}]<br/>
+        Rot: [{cameraRotation.x.toFixed(1)}°, {cameraRotation.y.toFixed(1)}°, {cameraRotation.z.toFixed(1)}°]
+      </div>
     </div>
   )
 }
