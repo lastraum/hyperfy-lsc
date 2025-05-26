@@ -1036,3 +1036,51 @@ export function FieldBtn({ label, note, hint, nav, onClick }) {
     </div>
   )
 }
+
+export function FieldButon({ label, note, hint, nav, onClick }) {
+  const { setHint } = useContext(HintContext)
+  return (
+    <div
+    className='fieldbtn'
+    css={css`
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 2.5rem;
+      padding: 0 1rem;
+      margin: 1rem auto;
+      max-width: 80%;
+      border-radius: 6px;
+      background: rgba(255, 77, 77, 0.9);
+      transition: all 0.2s ease;
+
+      .fieldbtn-label {
+        flex: 1;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        font-size: 0.9375rem; 
+        color: rgba(255, 255, 255, 0.95);
+        text-align: center;
+      }
+      .fieldbtn-note {
+        font-size: 0.9375rem;
+        color: rgba(255, 255, 255, 0.8);
+      }
+      &:hover {
+        cursor: pointer;
+        background: #e13a3e;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(255, 77, 77, 0.4);
+      }
+    `}
+      onPointerEnter={() => setHint(hint)}
+      onPointerLeave={() => setHint(null)}
+      onClick={onClick}
+    >
+      <div className='fieldbtn-label'>{label}</div>
+      {/* {note && <div className='fieldbtn-note'>{note}</div>} */}
+      {/* {nav && <ChevronRightIcon size='1.5rem' />} */}
+    </div>
+  )
+}

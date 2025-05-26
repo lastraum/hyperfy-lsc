@@ -39,6 +39,7 @@ import {
   FieldTextarea,
   FieldToggle,
   FieldVec3,
+  FieldButon,
 } from './Fields'
 import { HintContext, HintProvider } from './Hint'
 import { useFullscreen } from './useFullscreen'
@@ -582,6 +583,14 @@ function Prefs({ world, hidden }) {
           value={voice}
           onChange={voice => world.prefs.setVoice(voice)}
         />
+         <Group label='Authentication' />
+         <FieldButon
+          label='Login'
+          hint='Login to your account'
+          onClick={() => {
+            // world.network.send('login')
+          }}
+         />
       </div>
     </Pane>
   )
