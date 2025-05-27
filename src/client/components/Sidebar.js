@@ -13,6 +13,7 @@ import {
   LoaderPinwheelIcon,
   MessageSquareTextIcon,
   Move3DIcon,
+  MountainIcon,
   OctagonXIcon,
   PinIcon,
   RocketIcon,
@@ -55,9 +56,10 @@ import { DEG2RAD, RAD2DEG } from '../../core/extras/general'
 import * as THREE from '../../core/extras/three'
 import { isTouch } from '../utils'
 import { uuid } from '../../core/utils'
+import { TerrainPane } from './TerrainPane'
 
 const mainSectionPanes = ['prefs']
-const worldSectionPanes = ['world', 'docs', 'apps', 'add']
+const worldSectionPanes = ['world', 'docs', 'apps', 'add', 'terrain']
 const appSectionPanes = ['app', 'script', 'nodes', 'meta']
 
 const e1 = new THREE.Euler(0, 0, 0, 'YXZ')
@@ -186,6 +188,13 @@ export function Sidebar({ world, ui }) {
               >
                 <CirclePlusIcon size='1.25rem' />
               </Btn>
+              <Btn
+                active={activePane === 'terrain'}
+                suspended={ui.pane === 'terrain' && !activePane}
+                onClick={() => world.ui.togglePane('terrain')}
+              >
+                <MountainIcon size='1.25rem' />
+              </Btn>
             </Section>
           )}
           {ui.app && (
@@ -229,6 +238,7 @@ export function Sidebar({ world, ui }) {
         {ui.pane === 'script' && <Script key={ui.app.data.id} world={world} hidden={!ui.active} />}
         {ui.pane === 'nodes' && <Nodes key={ui.app.data.id} world={world} hidden={!ui.active} />}
         {ui.pane === 'meta' && <Meta key={ui.app.data.id} world={world} hidden={!ui.active} />}
+        {ui.pane === 'terrain' && <TerrainPane world={world} hidden={!ui.active} />}
       </div>
     </HintProvider>
   )
